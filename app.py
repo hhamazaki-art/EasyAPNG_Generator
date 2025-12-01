@@ -218,12 +218,24 @@ WIDTH = 600
 HEIGHT = 400
 FRAME_DELAY = 100
 
-# 日本語フォント読み込み関数（明朝太字対応・疑似太字版）
+# 日本語フォント読み込み関数（Streamlit Cloud対応版）
 def get_font(font_type="ゴシック", weight="W7", size=40):
-    """日本語フォントを取得（明朝ウェイト対応）"""
+    """日本語フォントを取得（Streamlit Cloud対応）"""
     font_paths = []
     
     if font_type == "ゴシック":
+        # Streamlit Cloud (Linux)のフォントパス - 最優先
+        linux_paths = [
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansMonoCJKjp-Bold.otf",
+            "/usr/share/fonts/opentype/noto/NotoSansMonoCJKjp-Regular.otf",
+        ]
+        font_paths.extend(linux_paths)
+        
+        # Mac用フォントパス
         hiragino_std_paths = {
             "W3": "/Library/Fonts/ヒラギノ角ゴ Std W4.otf",
             "W4": "/Library/Fonts/ヒラギノ角ゴ Std W4.otf",
@@ -244,6 +256,7 @@ def get_font(font_type="ゴシック", weight="W7", size=40):
             "W9": "/System/Library/Fonts/ヒラギノ角ゴシック W9.ttc",
         }
         
+        # Windows用フォントパス
         windows_paths = {
             "W3": ["C:\\Windows\\Fonts\\meiryo.ttc", "C:\\Windows\\Fonts\\YuGothL.ttc"],
             "W4": ["C:\\Windows\\Fonts\\meiryo.ttc", "C:\\Windows\\Fonts\\YuGothR.ttc"],
@@ -266,6 +279,18 @@ def get_font(font_type="ゴシック", weight="W7", size=40):
             "C:\\Windows\\Fonts\\msgothic.ttc",
         ])
     else:  # 明朝
+        # Streamlit Cloud (Linux)のフォントパス - 最優先
+        linux_paths = [
+            "/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSerifCJK-Bold.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSerifCJK-Regular.ttc",
+            # セリフがない場合はサンズで代用
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        ]
+        font_paths.extend(linux_paths)
+        
         # 明朝は全ウェイトで同じフォントを使用
         font_paths.extend([
             "/System/Library/Fonts/ヒラギノ明朝 ProN W6.ttc",
@@ -279,9 +304,11 @@ def get_font(font_type="ゴシック", weight="W7", size=40):
     for font_path in font_paths:
         try:
             return ImageFont.truetype(font_path, size)
-        except:
+        except Exception as e:
             continue
     
+    # 全て失敗した場合はデフォルトフォント
+    st.warning(f"⚠ 日本語フォントが見つかりませんでした。デフォルトフォントを使用します。")
     return ImageFont.load_default()
 
 # 明朝太字用の疑似太字描画関数
