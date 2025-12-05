@@ -4,6 +4,7 @@ from apng import APNG
 import io
 import os
 import zipfile
+import base64
 from datetime import datetime
 
 # ページ設定
@@ -13,15 +14,15 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# モダンなダークモードCSS（UI刷新・シンプル版）
+# モダンなダークモードCSS（UI刷新・横スクロール対応版）
 st.markdown("""
 <style>
-    /* グローバル設定 - フォント変更なし */
+    /* グローバル設定 */
     * {
         font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
     }
     
-    /* 背景色 - 真っ黒ではなく深いグレーで目に優しく */
+    /* 背景色 */
     .stApp {
         background-color: #1a1a1a;
         color: #f0f0f0;
@@ -34,17 +35,17 @@ st.markdown("""
         max-width: 98%;
     }
     
-    /* タイトル - 装飾を抑えてシンプルに */
+    /* タイトル */
     h1 {
         font-size: 24px;
         font-weight: 700;
         color: #ffffff;
-        border-left: 5px solid #007bff; /* アクセントカラー */
+        border-left: 5px solid #007bff;
         padding-left: 15px;
         margin-bottom: 2rem;
     }
     
-    /* 入力フィールド - コントラスト確保 */
+    /* 入力フィールド */
     .stTextInput > div > div > input,
     .stTextArea > div > div > textarea,
     .stNumberInput > div > div > input,
@@ -60,12 +61,11 @@ st.markdown("""
         border-color: #007bff;
     }
 
-    /* タブのスタイル調整 */
+    /* タブ */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background-color: transparent;
     }
-    
     .stTabs [data-baseweb="tab"] {
         background-color: #2c2c2c;
         border-radius: 4px 4px 0 0;
@@ -74,14 +74,13 @@ st.markdown("""
         border: 1px solid #333;
         border-bottom: none;
     }
-    
     .stTabs [data-baseweb="tab"][aria-selected="true"] {
         background-color: #007bff;
         color: white;
         border-color: #007bff;
     }
 
-    /* ボタン - シンプルで押しやすく */
+    /* ボタン */
     .stButton > button {
         border-radius: 4px;
         font-weight: 600;
@@ -94,7 +93,6 @@ st.markdown("""
         border-color: #666;
         background-color: #444;
     }
-    
     .stButton > button[kind="primary"] {
         background-color: #007bff;
         border-color: #0056b3;
@@ -104,7 +102,7 @@ st.markdown("""
         background-color: #0069d9;
     }
     
-    /* エキスパンダー - 区切りを明確に */
+    /* エキスパンダー */
     .streamlit-expanderHeader {
         background-color: #252525;
         border: 1px solid #333;
@@ -117,29 +115,26 @@ st.markdown("""
         padding: 15px;
     }
 
-    /* プレビューエリアのSticky化（修正版） */
-    /* 親コンテナの高さ制限を解除し、カラム自体をstickyにする */
+    /* プレビューエリアのSticky化 */
     div[data-testid="stHorizontalBlock"] {
-        align-items: flex-start; /* これが重要：カラムの高さを合わせない */
+        align-items: flex-start;
     }
-    
-    /* 右カラム（プレビュー） */
     div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-of-type(2) {
         position: -webkit-sticky;
         position: sticky;
-        top: 3rem; /* 上部の余白 */
+        top: 3rem;
         z-index: 100;
     }
     
     /* プレビューボックス */
     .preview-box {
-        background-color: #000;
+        background-color: #111;
         border: 1px solid #333;
         border-radius: 8px;
         padding: 15px;
     }
-    
-    /* セクション見出し（装飾なし） */
+
+    /* セクション見出し */
     .simple-header {
         font-size: 16px;
         font-weight: bold;
@@ -150,7 +145,7 @@ st.markdown("""
         padding-bottom: 5px;
     }
     
-    /* 注釈リストのアイテム */
+    /* 注釈リストアイテム */
     .annotation-item {
         background-color: #252525;
         border: 1px solid #333;
@@ -160,6 +155,57 @@ st.markdown("""
         border-radius: 0 4px 4px 0;
     }
 
+    /* 横スクロールコンテナ */
+    .scroll-container {
+        display: flex;
+        overflow-x: auto;
+        gap: 12px;
+        padding-bottom: 12px;
+        margin-bottom: 24px;
+        scrollbar-width: thin;
+        scrollbar-color: #007bff #333;
+    }
+    .scroll-container::-webkit-scrollbar {
+        height: 8px;
+    }
+    .scroll-container::-webkit-scrollbar-track {
+        background: #333;
+        border-radius: 4px;
+    }
+    .scroll-container::-webkit-scrollbar-thumb {
+        background-color: #007bff;
+        border-radius: 4px;
+    }
+    
+    /* スクロールアイテム */
+    .scroll-item {
+        flex: 0 0 240px;
+        background-color: #1e1e1e;
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .scroll-item img {
+        width: 100%;
+        height: auto;
+        border-radius: 4px;
+        border: 1px solid #333;
+        margin-bottom: 8px;
+    }
+    .scroll-item-caption {
+        font-size: 12px;
+        color: #ddd;
+        font-weight: 600;
+        text-align: center;
+        width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -167,11 +213,15 @@ st.markdown("""
 WIDTH = 600
 HEIGHT = 400
 
-# 日本語フォント読み込み関数（変更なし）
+# 画像をBase64に変換する関数
+def image_to_base64(img):
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
+
+# 日本語フォント読み込み関数
 def get_font(font_type="ゴシック", weight="W7", size=40):
-    """日本語フォントを取得（Streamlit Cloud対応）"""
     font_paths = []
-    
     if font_type == "ゴシック":
         linux_paths = [
             "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
@@ -182,7 +232,6 @@ def get_font(font_type="ゴシック", weight="W7", size=40):
             "/usr/share/fonts/opentype/noto/NotoSansMonoCJKjp-Regular.otf",
         ]
         font_paths.extend(linux_paths)
-        
         hiragino_std_paths = {
             "W3": "/Library/Fonts/ヒラギノ角ゴ Std W4.otf",
             "W4": "/Library/Fonts/ヒラギノ角ゴ Std W4.otf",
@@ -192,7 +241,6 @@ def get_font(font_type="ゴシック", weight="W7", size=40):
             "W8": "/Library/Fonts/ヒラギノ角ゴ Std W8.otf",
             "W9": "/Library/Fonts/ヒラギノ角ゴ Std W8.otf",
         }
-        
         hiragino_paths = {
             "W3": "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
             "W4": "/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc",
@@ -202,7 +250,6 @@ def get_font(font_type="ゴシック", weight="W7", size=40):
             "W8": "/System/Library/Fonts/ヒラギノ角ゴシック W8.ttc",
             "W9": "/System/Library/Fonts/ヒラギノ角ゴシック W9.ttc",
         }
-        
         windows_paths = {
             "W3": ["C:\\Windows\\Fonts\\meiryo.ttc", "C:\\Windows\\Fonts\\YuGothL.ttc"],
             "W4": ["C:\\Windows\\Fonts\\meiryo.ttc", "C:\\Windows\\Fonts\\YuGothR.ttc"],
@@ -212,19 +259,11 @@ def get_font(font_type="ゴシック", weight="W7", size=40):
             "W8": ["C:\\Windows\\Fonts\\meiryob.ttc", "C:\\Windows\\Fonts\\YuGothB.ttc"],
             "W9": ["C:\\Windows\\Fonts\\meiryob.ttc", "C:\\Windows\\Fonts\\YuGothB.ttc"],
         }
-        
-        if weight in hiragino_std_paths:
-            font_paths.append(hiragino_std_paths[weight])
-        if weight in hiragino_paths:
-            font_paths.append(hiragino_paths[weight])
-        if weight in windows_paths:
-            font_paths.extend(windows_paths[weight])
-        
-        font_paths.extend([
-            "msgothic.ttc",
-            "C:\\Windows\\Fonts\\msgothic.ttc",
-        ])
-    else:  # 明朝
+        if weight in hiragino_std_paths: font_paths.append(hiragino_std_paths[weight])
+        if weight in hiragino_paths: font_paths.append(hiragino_paths[weight])
+        if weight in windows_paths: font_paths.extend(windows_paths[weight])
+        font_paths.extend(["msgothic.ttc", "C:\\Windows\\Fonts\\msgothic.ttc"])
+    else:
         linux_paths = [
             "/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc",
             "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
@@ -234,7 +273,6 @@ def get_font(font_type="ゴシック", weight="W7", size=40):
             "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         ]
         font_paths.extend(linux_paths)
-        
         font_paths.extend([
             "/System/Library/Fonts/ヒラギノ明朝 ProN W6.ttc",
             "/Library/Fonts/ヒラギノ明朝 Std W6.otf",
@@ -243,17 +281,15 @@ def get_font(font_type="ゴシック", weight="W7", size=40):
             "C:\\Windows\\Fonts\\msmincho.ttc",
             "msmincho.ttc"
         ])
-    
     for font_path in font_paths:
         try:
             return ImageFont.truetype(font_path, size)
         except Exception as e:
             continue
-    
     st.warning(f"日本語フォントが見つかりませんでした。デフォルトフォントを使用します。")
     return ImageFont.load_default()
 
-# 描画関連関数群（変更なし）
+# 描画関連関数群
 def draw_text_bold(draw, position, text, font, fill, anchor="mm", is_mincho_bold=False):
     x, y = position
     if is_mincho_bold:
@@ -274,17 +310,14 @@ def load_icon_image(icon_name, size):
 def draw_text_with_spacing(img, draw, text, x, y, font, color, char_spacing=0, line_spacing=0, aspect_ratio=1.0, is_mincho_bold=False):
     lines = text.split('\n')
     current_y = y
-    
     for line in lines:
         if not line:
             bbox = draw.textbbox((0, 0), "A", font=font)
             current_y += (bbox[3] - bbox[1]) + line_spacing
             continue
-        
         if char_spacing != 0 or aspect_ratio != 1.0:
             total_width = 0
             char_data = []
-            
             for char in line:
                 bbox = draw.textbbox((0, 0), char, font=font)
                 char_width = (bbox[2] - bbox[0])
@@ -292,72 +325,57 @@ def draw_text_with_spacing(img, draw, text, x, y, font, color, char_spacing=0, l
                 scaled_width = char_width * aspect_ratio
                 char_data.append((char, scaled_width, char_height))
                 total_width += scaled_width + char_spacing
-            
             total_width -= char_spacing
             start_x = x - total_width / 2
             current_x = start_x
-            
             for char, scaled_width, char_height in char_data:
                 temp_size = int(font.size * 3)
                 temp_img = Image.new('RGBA', (temp_size, temp_size), (255, 255, 255, 0))
                 temp_draw = ImageDraw.Draw(temp_img)
-                
                 if is_mincho_bold:
                     offsets = [(0, 0), (1, 0), (0, 1), (1, 1)]
                     for dx, dy in offsets:
                         temp_draw.text((temp_size // 2 + dx, temp_size // 2 + dy), char, fill=color, font=font, anchor="mm")
                 else:
                     temp_draw.text((temp_size // 2, temp_size // 2), char, fill=color, font=font, anchor="mm")
-                
                 if aspect_ratio != 1.0:
                     new_width = int(temp_img.width * aspect_ratio)
                     temp_img = temp_img.resize((new_width, temp_img.height), Image.Resampling.LANCZOS)
-                
                 paste_x = int(current_x + scaled_width / 2 - temp_img.width / 2)
                 paste_y = int(current_y - temp_img.height / 2)
                 img.paste(temp_img, (paste_x, paste_y), temp_img)
-                
                 current_x += scaled_width + char_spacing
         else:
             draw_text_bold(draw, (x, current_y), line, font, color, "mm", is_mincho_bold)
-        
         bbox = draw.textbbox((0, 0), line, font=font)
         current_y += (bbox[3] - bbox[1]) + line_spacing
-    
     return current_y
 
-# テンプレート関数群（変更なし）
+# テンプレート関数群
 def create_red_border_blink_frames(width, height, text_elements, annotation_elements, uploaded_image, image_config, border_width=13, border_color="red", num_frames=5):
     frames = []
     color_map = {"red": "#FF0000", "blue": "#0000FF", "green": "#00FF00", "black": "#000000", "orange": "#FF6600"}
     border_rgb = color_map.get(border_color, "#FF0000")
-    
     for i in range(num_frames):
         img = Image.new('RGB', (width, height), 'white')
         draw = ImageDraw.Draw(img)
-        
         if uploaded_image is not None and image_config is not None:
             img_scale = image_config.get('scale', 1.0)
             original_width = image_config.get('original_width', 100)
             original_height = image_config.get('original_height', 100)
-            
             img_width = int(original_width * img_scale)
             img_height = int(original_height * img_scale)
             img_x = image_config.get('x', width // 2)
             img_y = image_config.get('y', height // 2)
-            
             resized_img = uploaded_image.resize((img_width, img_height), Image.Resampling.LANCZOS)
             paste_x = img_x - img_width // 2
             paste_y = img_y - img_height // 2
-            
             if uploaded_image.mode == 'RGBA':
                 img.paste(resized_img, (paste_x, paste_y), resized_img)
             else:
                 img.paste(resized_img, (paste_x, paste_y))
-        
         if i % 2 == 0:
             draw.rectangle([0, 0, width-1, height-1], outline=border_rgb, width=border_width)
-        
         for elem in text_elements:
             if elem.get('enabled', True):
                 font = get_font(elem['font'], elem.get('weight', 'W7'), elem['size'])
@@ -367,54 +385,43 @@ def create_red_border_blink_frames(width, height, text_elements, annotation_elem
                                      line_spacing=elem.get('line_spacing', 0),
                                      aspect_ratio=elem.get('aspect_ratio', 1.0),
                                      is_mincho_bold=is_mincho_bold)
-        
         for elem in annotation_elements:
             if elem.get('enabled', True):
                 font = get_font(elem['font'], elem.get('weight', 'W7'), elem['size'])
                 is_mincho_bold = elem['font'] == "明朝" and elem.get('weight', 'W7') in ["W7", "W8", "W9"]
                 draw_text_bold(draw, (elem['x'], elem['y']), elem['text'], font, elem['color'], "lm", is_mincho_bold)
-        
         buffer = io.BytesIO()
         img.save(buffer, format='PNG')
         frames.append(buffer.getvalue())
-    
     return frames
 
 def create_corner_icon_blink_frames(width, height, text_elements, annotation_elements, uploaded_image, image_config, icon_name="check.png", icon_size=85, num_frames=5):
     frames = []
-    
     for i in range(num_frames):
         img = Image.new('RGB', (width, height), 'white')
         draw = ImageDraw.Draw(img)
-        
         if uploaded_image is not None and image_config is not None:
             img_scale = image_config.get('scale', 1.0)
             original_width = image_config.get('original_width', 100)
             original_height = image_config.get('original_height', 100)
-            
             img_width = int(original_width * img_scale)
             img_height = int(original_height * img_scale)
             img_x = image_config.get('x', width // 2)
             img_y = image_config.get('y', height // 2)
-            
             resized_img = uploaded_image.resize((img_width, img_height), Image.Resampling.LANCZOS)
             paste_x = img_x - img_width // 2
             paste_y = img_y - img_height // 2
-            
             if uploaded_image.mode == 'RGBA':
                 img.paste(resized_img, (paste_x, paste_y), resized_img)
             else:
                 img.paste(resized_img, (paste_x, paste_y))
-        
         if i % 2 == 0:
             icon_img = load_icon_image(icon_name, icon_size)
-            
             if icon_img:
                 positions = [(10, 10), (width - icon_size - 10, 10),
                             (10, height - icon_size - 10), (width - icon_size - 10, height - icon_size - 10)]
                 for pos in positions:
                     img.paste(icon_img, pos, icon_img)
-        
         for elem in text_elements:
             if elem.get('enabled', True):
                 font = get_font(elem['font'], elem.get('weight', 'W7'), elem['size'])
@@ -424,22 +431,18 @@ def create_corner_icon_blink_frames(width, height, text_elements, annotation_ele
                                      line_spacing=elem.get('line_spacing', 0),
                                      aspect_ratio=elem.get('aspect_ratio', 1.0),
                                      is_mincho_bold=is_mincho_bold)
-        
         for elem in annotation_elements:
             if elem.get('enabled', True):
                 font = get_font(elem['font'], elem.get('weight', 'W7'), elem['size'])
                 is_mincho_bold = elem['font'] == "明朝" and elem.get('weight', 'W7') in ["W7", "W8", "W9"]
                 draw_text_bold(draw, (elem['x'], elem['y']), elem['text'], font, elem['color'], "lm", is_mincho_bold)
-        
         buffer = io.BytesIO()
         img.save(buffer, format='PNG')
         frames.append(buffer.getvalue())
-    
     return frames
 
 def create_icon_increase_frames(width, height, icon_text_config, annotation_elements, uploaded_image, image_config, icon_name="check.png", icon_size=60, num_frames=5):
     frames = []
-    
     text_content = icon_text_config.get('text', 'サンプルテキスト').replace('\n', '')
     text_font_type = icon_text_config.get('font', 'ゴシック')
     text_weight = icon_text_config.get('weight', 'W7')
@@ -450,27 +453,22 @@ def create_icon_increase_frames(width, height, icon_text_config, annotation_elem
     char_spacing = icon_text_config.get('icon_char_spacing', 0)
     aspect_ratio = icon_text_config.get('icon_aspect_ratio', 1.0)
     row_spacing = icon_text_config.get('icon_row_spacing', 62)
-    
     is_mincho_bold = text_font_type == "明朝" and text_weight in ["W7", "W8", "W9"]
     
     for frame_idx in range(num_frames):
         img = Image.new('RGB', (width, height), 'white')
         draw = ImageDraw.Draw(img)
-        
         if uploaded_image is not None and image_config is not None:
             img_scale = image_config.get('scale', 1.0)
             original_width = image_config.get('original_width', 100)
             original_height = image_config.get('original_height', 100)
-            
             img_width = int(original_width * img_scale)
             img_height = int(original_height * img_scale)
             img_x = image_config.get('x', width // 2)
             img_y = image_config.get('y', height // 2)
-            
             resized_img = uploaded_image.resize((img_width, img_height), Image.Resampling.LANCZOS)
             paste_x = img_x - img_width // 2
             paste_y = img_y - img_height // 2
-            
             if uploaded_image.mode == 'RGBA':
                 img.paste(resized_img, (paste_x, paste_y), resized_img)
             else:
@@ -478,53 +476,41 @@ def create_icon_increase_frames(width, height, icon_text_config, annotation_elem
         
         num_lines = frame_idx + 1
         start_y = text_y_base - ((num_lines - 1) * row_spacing)
-        
         icon_img = load_icon_image(icon_name, icon_size)
         font = get_font(text_font_type, text_weight, text_size)
         
         for line_idx in range(num_lines):
             current_y = start_y + (line_idx * row_spacing)
-            
             if char_spacing != 0 or aspect_ratio != 1.0:
                 first_char_left_edge = None
                 current_x = text_x
-                
                 for char_idx, char in enumerate(text_content):
                     temp_size = int(font.size * 3)
                     temp_img = Image.new('RGBA', (temp_size, temp_size), (255, 255, 255, 0))
                     temp_draw = ImageDraw.Draw(temp_img)
-                    
                     if is_mincho_bold:
                         offsets = [(0, 0), (1, 0), (0, 1), (1, 1)]
                         for dx, dy in offsets:
                             temp_draw.text((temp_size // 2 + dx, temp_size // 2 + dy), char, fill=text_color, font=font, anchor="mm")
                     else:
                         temp_draw.text((temp_size // 2, temp_size // 2), char, fill=text_color, font=font, anchor="mm")
-                    
                     bbox = temp_draw.textbbox((0, 0), char, font=font)
                     original_char_width = bbox[2] - bbox[0]
                     scaled_char_width = original_char_width * aspect_ratio
-                    
                     if aspect_ratio != 1.0:
                         new_width = int(temp_img.width * aspect_ratio)
                         temp_img = temp_img.resize((new_width, temp_img.height), Image.Resampling.LANCZOS)
-                    
                     bbox_img = temp_img.getbbox()
                     if bbox_img:
                         cropped = temp_img.crop(bbox_img)
                         paste_x = int(current_x + bbox_img[0])
                         paste_y = int(current_y - temp_img.height // 2 + bbox_img[1])
-                        
-                        if char_idx == 0:
-                            first_char_left_edge = paste_x
-                        
+                        if char_idx == 0: first_char_left_edge = paste_x
                         img.paste(cropped, (paste_x, paste_y), cropped)
                         current_x += scaled_char_width + char_spacing
                     else:
                         current_x += scaled_char_width + char_spacing
-                        if char_idx == 0:
-                            first_char_left_edge = current_x
-                
+                        if char_idx == 0: first_char_left_edge = current_x
                 if first_char_left_edge is not None:
                     icon_x_pos = int(first_char_left_edge - icon_size - 5)
                 else:
@@ -532,22 +518,17 @@ def create_icon_increase_frames(width, height, icon_text_config, annotation_elem
             else:
                 draw_text_bold(draw, (text_x, current_y), text_content, font, text_color, "lm", is_mincho_bold)
                 icon_x_pos = text_x - icon_size - 5
-            
             icon_y_pos = current_y - icon_size // 2
-            
             if icon_img:
                 img.paste(icon_img, (icon_x_pos, icon_y_pos), icon_img)
-        
         for elem in annotation_elements:
             if elem.get('enabled', True):
                 font_annot = get_font(elem['font'], elem.get('weight', 'W7'), elem['size'])
                 is_mincho_bold_annot = elem['font'] == "明朝" and elem.get('weight', 'W7') in ["W7", "W8", "W9"]
                 draw_text_bold(draw, (elem['x'], elem['y']), elem['text'], font_annot, elem['color'], "lm", is_mincho_bold_annot)
-        
         buffer = io.BytesIO()
         img.save(buffer, format='PNG')
         frames.append(buffer.getvalue())
-    
     return frames
 
 def save_apng(frames, num_frames, num_plays=4):
@@ -564,24 +545,19 @@ def save_apng(frames, num_frames, num_plays=4):
 def create_preview_image(text_elements, annotation_elements, uploaded_image, image_config, template_type, scale=0.5, **kwargs):
     preview_width = int(WIDTH * scale)
     preview_height = int(HEIGHT * scale)
-    
     img = Image.new('RGB', (preview_width, preview_height), 'white')
     draw = ImageDraw.Draw(img)
-    
     if uploaded_image is not None and image_config is not None:
         img_scale = image_config.get('scale', 1.0)
         original_width = image_config.get('original_width', 100)
         original_height = image_config.get('original_height', 100)
-        
         img_width = int(original_width * img_scale * scale)
         img_height = int(original_height * img_scale * scale)
         img_x = int(image_config.get('x', WIDTH // 2) * scale)
         img_y = int(image_config.get('y', HEIGHT // 2) * scale)
-        
         resized_img = uploaded_image.resize((img_width, img_height), Image.Resampling.LANCZOS)
         paste_x = img_x - img_width // 2
         paste_y = img_y - img_height // 2
-        
         if uploaded_image.mode == 'RGBA':
             img.paste(resized_img, (paste_x, paste_y), resized_img)
         else:
@@ -592,18 +568,14 @@ def create_preview_image(text_elements, annotation_elements, uploaded_image, ima
         border_color = kwargs.get('border_color', 'red')
         color_map = {"red": "#FF0000", "blue": "#0000FF", "green": "#00FF00", "black": "#000000", "orange": "#FF6600"}
         draw.rectangle([0, 0, preview_width-1, preview_height-1], outline=color_map.get(border_color, "#FF0000"), width=border_width)
-    
     elif template_type == "4隅アイコン点滅":
         icon_size = int(kwargs.get('icon_size', 85) * scale)
         icon_name = kwargs.get('icon_name', 'check.png')
         icon_img = load_icon_image(icon_name, icon_size)
-        
         if icon_img:
             positions = [(10, 10), (preview_width - icon_size - 10, 10),
                         (10, preview_height - icon_size - 10), (preview_width - icon_size - 10, preview_height - icon_size - 10)]
-            for pos in positions:
-                img.paste(icon_img, pos, icon_img)
-    
+            for pos in positions: img.paste(icon_img, pos, icon_img)
     elif template_type == "アイコン増加":
         icon_text_config = text_elements[0]
         text_content = icon_text_config.get('text', 'サンプルテキスト').replace('\n', '')
@@ -616,61 +588,45 @@ def create_preview_image(text_elements, annotation_elements, uploaded_image, ima
         char_spacing = int(icon_text_config.get('icon_char_spacing', 0) * scale)
         aspect_ratio = icon_text_config.get('icon_aspect_ratio', 1.0)
         row_spacing = int(icon_text_config.get('icon_row_spacing', 62) * scale)
-        
         icon_size_val = int(kwargs.get('icon_size', 60) * scale)
         icon_name = kwargs.get('icon_name', 'check.png')
-        
         is_mincho_bold = text_font_type == "明朝" and text_weight in ["W7", "W8", "W9"]
-        
         num_lines = 5
         start_y = text_y_base - ((num_lines - 1) * row_spacing)
-        
         icon_img = load_icon_image(icon_name, icon_size_val)
         font = get_font(text_font_type, text_weight, text_size)
-        
         for line_idx in range(num_lines):
             current_y = start_y + (line_idx * row_spacing)
-            
             if char_spacing != 0 or aspect_ratio != 1.0:
                 first_char_left_edge = None
                 current_x = text_x
-                
                 for char_idx, char in enumerate(text_content):
                     temp_size = int(font.size * 3)
                     temp_img = Image.new('RGBA', (temp_size, temp_size), (255, 255, 255, 0))
                     temp_draw = ImageDraw.Draw(temp_img)
-                    
                     if is_mincho_bold:
                         offsets = [(0, 0), (1, 0), (0, 1), (1, 1)]
                         for dx, dy in offsets:
                             temp_draw.text((temp_size // 2 + dx, temp_size // 2 + dy), char, fill=text_color, font=font, anchor="mm")
                     else:
                         temp_draw.text((temp_size // 2, temp_size // 2), char, fill=text_color, font=font, anchor="mm")
-                    
                     bbox_text = temp_draw.textbbox((0, 0), char, font=font)
                     original_char_width = bbox_text[2] - bbox_text[0]
                     scaled_char_width = original_char_width * aspect_ratio
-                    
                     if aspect_ratio != 1.0:
                         new_width = int(temp_img.width * aspect_ratio)
                         temp_img = temp_img.resize((new_width, temp_img.height), Image.Resampling.LANCZOS)
-                    
                     bbox_img = temp_img.getbbox()
                     if bbox_img:
                         cropped = temp_img.crop(bbox_img)
                         paste_x = int(current_x + bbox_img[0])
                         paste_y = int(current_y - temp_img.height // 2 + bbox_img[1])
-                        
-                        if char_idx == 0:
-                            first_char_left_edge = paste_x
-                        
+                        if char_idx == 0: first_char_left_edge = paste_x
                         img.paste(cropped, (paste_x, paste_y), cropped)
                         current_x += scaled_char_width + char_spacing
                     else:
                         current_x += scaled_char_width + char_spacing
-                        if char_idx == 0:
-                            first_char_left_edge = current_x
-                
+                        if char_idx == 0: first_char_left_edge = current_x
                 if first_char_left_edge is not None:
                     icon_x = int(first_char_left_edge - icon_size_val - int(5 * scale))
                 else:
@@ -678,9 +634,7 @@ def create_preview_image(text_elements, annotation_elements, uploaded_image, ima
             else:
                 draw_text_bold(draw, (text_x, current_y), text_content, font, text_color, "lm", is_mincho_bold)
                 icon_x = text_x - icon_size_val - int(5 * scale)
-            
             icon_y = current_y - icon_size_val // 2
-            
             if icon_img:
                 img.paste(icon_img, (icon_x, icon_y), icon_img)
     
@@ -797,9 +751,11 @@ with col_settings:
             col1, col2 = st.columns(2)
             with col1: border_width_red = st.slider("枠線の太さ", 1, 20, 13, key="border_width_red")
             with col2: border_colors = st.multiselect("枠線の色", ["red", "blue", "green", "black", "orange"], default=["red"], key="border_colors")
-            col3, col4 = st.columns(2)
-            with col3: num_frames_red = st.slider("フレーム数 (赤枠)", 5, 20, 5, key="num_frames_red")
-            with col4: loop_count_red = st.selectbox("ループ数 (赤枠)", [1, 2, 3, 4], index=3, key="loop_count_red")
+            
+            with st.expander("詳細設定（フレーム数・ループ数）", expanded=False):
+                col3, col4 = st.columns(2)
+                with col3: num_frames_red = st.slider("フレーム数", 5, 20, 5, key="num_frames_red")
+                with col4: loop_count_red = st.selectbox("ループ数", [1, 2, 3, 4], index=3, key="loop_count_red")
             st.divider()
         
         if use_corner_icon:
@@ -807,9 +763,11 @@ with col_settings:
             col1, col2 = st.columns(2)
             with col1: icon_size_corner = st.slider("アイコンサイズ", 20, 150, 85, key="icon_size_corner")
             with col2: icon_names = st.multiselect("アイコン種類", ["check.png", "red_check.png", "！.png", "！？.png"], default=["check.png"], key="icon_names")
-            col3, col4 = st.columns(2)
-            with col3: num_frames_corner = st.slider("フレーム数 (4隅)", 5, 20, 5, key="num_frames_corner")
-            with col4: loop_count_corner = st.selectbox("ループ数 (4隅)", [1, 2, 3, 4], index=3, key="loop_count_corner")
+            
+            with st.expander("詳細設定（フレーム数・ループ数）", expanded=False):
+                col3, col4 = st.columns(2)
+                with col3: num_frames_corner = st.slider("フレーム数", 5, 20, 5, key="num_frames_corner")
+                with col4: loop_count_corner = st.selectbox("ループ数", [1, 2, 3, 4], index=3, key="loop_count_corner")
             st.divider()
         
         if use_icon_increase:
@@ -817,103 +775,103 @@ with col_settings:
             col1, col2 = st.columns(2)
             with col1: icon_size_increase = st.slider("アイコンサイズ(増)", 20, 100, 60, key="icon_size_increase")
             with col2: icon_names_increase = st.multiselect("アイコン種類(増)", ["check.png", "red_check.png", "！.png", "！？.png"], default=["check.png"], key="icon_names_increase")
-            col3, col4 = st.columns(2)
-            with col3: num_frames_increase = st.slider("フレーム数 (増加)", 3, 10, 5, key="num_frames_increase")
-            with col4: loop_count_increase = st.selectbox("ループ数 (増加)", [1, 2, 3, 4], index=3, key="loop_count_increase")
+            
+            with st.expander("詳細設定（フレーム数・ループ数）", expanded=False):
+                col3, col4 = st.columns(2)
+                with col3: num_frames_increase = st.slider("フレーム数", 3, 10, 5, key="num_frames_increase")
+                with col4: loop_count_increase = st.selectbox("ループ数", [1, 2, 3, 4], index=3, key="loop_count_increase")
     
     # --- タブ2: テキスト設定 ---
     with tab_text:
-        # テキスト追加ボタンエリア
-        col_add_btn, _ = st.columns([1, 2])
-        with col_add_btn:
-            if st.button("テキストを追加", key="tab_btn_add", use_container_width=True):
-                st.session_state.text_variations.append({
-                    'text': '新しいテキスト',
-                    'font': 'ゴシック',
-                    'weight': 'W7',
-                    'size': 100,
-                    'color': '#000000',
-                    'char_spacing': 0,
-                    'line_spacing': 0,
-                    'aspect_ratio': 1.0,
-                    'x': WIDTH // 2,
-                    'y': HEIGHT // 2,
-                    'enabled': True,
-                    'icon_size': 40,
-                    'icon_x': 74,
-                    'icon_y': 320,
-                    'icon_char_spacing': 0,
-                    'icon_aspect_ratio': 1.0,
-                    'icon_row_spacing': 62
-                })
-                st.session_state.selected_text_tab = len(st.session_state.text_variations) - 1
-                st.rerun()
-
-        # テキスト選択用ラジオボタン（横並び）
+        # 第1：Text選択ラジオボタン
         text_options = [f"Text {i+1}" for i in range(len(st.session_state.text_variations))]
         selected_text_idx = st.radio("編集するテキストを選択", range(len(text_options)), format_func=lambda x: text_options[x], horizontal=True, index=st.session_state.get('selected_text_tab', 0))
         st.session_state.selected_text_tab = selected_text_idx
         
+        # 第2：テキストを追加ボタン
+        if st.button("テキストを追加", key="tab_btn_add", use_container_width=True):
+            st.session_state.text_variations.append({
+                'text': '新しいテキスト',
+                'font': 'ゴシック',
+                'weight': 'W7',
+                'size': 100,
+                'color': '#000000',
+                'char_spacing': 0,
+                'line_spacing': 0,
+                'aspect_ratio': 1.0,
+                'x': WIDTH // 2,
+                'y': HEIGHT // 2,
+                'enabled': True,
+                'icon_size': 40,
+                'icon_x': 74,
+                'icon_y': 320,
+                'icon_char_spacing': 0,
+                'icon_aspect_ratio': 1.0,
+                'icon_row_spacing': 62
+            })
+            st.session_state.selected_text_tab = len(st.session_state.text_variations) - 1
+            st.rerun()
+
         text_var = st.session_state.text_variations[selected_text_idx]
-        
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # テキスト入力と表示スイッチ
-        col_txt_main, col_txt_sw = st.columns([4, 1])
-        with col_txt_main:
-            new_text = st.text_area("テキスト内容", value=text_var['text'], height=80, key=f"textarea_{selected_text_idx}", label_visibility="collapsed", placeholder="テキストを入力...")
-            st.session_state.text_variations[selected_text_idx]['text'] = new_text
-        with col_txt_sw:
-            enabled = st.checkbox("表示", value=text_var.get('enabled', True), key=f"text_en_{selected_text_idx}")
-            st.session_state.text_variations[selected_text_idx]['enabled'] = enabled
+        # 第3：テキスト入力欄
+        new_text = st.text_area("テキスト内容", value=text_var['text'], height=80, key=f"textarea_{selected_text_idx}", placeholder="テキストを入力...")
+        st.session_state.text_variations[selected_text_idx]['text'] = new_text
         
-        # フォント設定など
-        with st.expander("フォント・デザイン設定", expanded=True):
-            col1, col2 = st.columns(2)
-            with col1:
-                font = st.selectbox("フォント", ["ゴシック", "明朝"],
-                                    index=["ゴシック", "明朝"].index(text_var.get('font', 'ゴシック')),
-                                   key=f"font_{selected_text_idx}")
-                st.session_state.text_variations[selected_text_idx]['font'] = font
-            with col2:
-                weight = st.selectbox("ウェイト", ["W3", "W4", "W5", "W6", "W7", "W8", "W9"],
-                                     index=["W3", "W4", "W5", "W6", "W7", "W8", "W9"].index(text_var.get('weight', 'W7')),
-                                     key=f"weight_{selected_text_idx}")
-                st.session_state.text_variations[selected_text_idx]['weight'] = weight
-            
-            col3, col4 = st.columns([2, 1])
-            with col3:
-                size = st.slider("サイズ", 50, 200, text_var.get('size', 100), key=f"size_{selected_text_idx}")
-                st.session_state.text_variations[selected_text_idx]['size'] = size
-            with col4:
-                color = st.color_picker("色", text_var.get('color', '#000000'), key=f"color_{selected_text_idx}")
-                st.session_state.text_variations[selected_text_idx]['color'] = color
-            
-            col5, col6, col7 = st.columns(3)
-            with col5:
-                char_spacing = st.slider("文字間", -10, 50, text_var.get('char_spacing', 0), key=f"char_{selected_text_idx}")
-                st.session_state.text_variations[selected_text_idx]['char_spacing'] = char_spacing
-            with col6:
-                line_spacing = st.slider("行間", -10, 50, text_var.get('line_spacing', 0), key=f"line_{selected_text_idx}")
-                st.session_state.text_variations[selected_text_idx]['line_spacing'] = line_spacing
-            with col7:
-                aspect_ratio = st.slider("縦横比", 50, 200, int(text_var.get('aspect_ratio', 1.0) * 100), key=f"aspect_{selected_text_idx}") / 100
-                st.session_state.text_variations[selected_text_idx]['aspect_ratio'] = aspect_ratio
+        # 第4：表示のオンオフボタン
+        enabled = st.checkbox("表示する", value=text_var.get('enabled', True), key=f"text_en_{selected_text_idx}")
+        st.session_state.text_variations[selected_text_idx]['enabled'] = enabled
+        
+        st.divider()
 
-        # 位置設定
-        with st.expander("位置調整", expanded=False):
-            col1, col2 = st.columns(2)
-            with col1:
-                pos_x = st.slider("X座標", 0, WIDTH, text_var.get('x', WIDTH // 2), key=f"x_{selected_text_idx}")
-                st.session_state.text_variations[selected_text_idx]['x'] = pos_x
-            with col2:
-                pos_y = st.slider("Y座標", 0, HEIGHT, text_var.get('y', HEIGHT // 2), key=f"y_{selected_text_idx}")
-                st.session_state.text_variations[selected_text_idx]['y'] = pos_y
+        # 第5：フォント、ウェイト（太さ）
+        col1, col2 = st.columns(2)
+        with col1:
+            font = st.selectbox("フォント", ["ゴシック", "明朝"],
+                                index=["ゴシック", "明朝"].index(text_var.get('font', 'ゴシック')),
+                                key=f"font_{selected_text_idx}")
+            st.session_state.text_variations[selected_text_idx]['font'] = font
+        with col2:
+            weight = st.selectbox("太さ", ["W3", "W4", "W5", "W6", "W7", "W8", "W9"],
+                                    index=["W3", "W4", "W5", "W6", "W7", "W8", "W9"].index(text_var.get('weight', 'W7')),
+                                    key=f"weight_{selected_text_idx}")
+            st.session_state.text_variations[selected_text_idx]['weight'] = weight
+        
+        # 第6：サイズ、色
+        col3, col4 = st.columns([2, 1])
+        with col3:
+            size = st.slider("サイズ", 50, 200, text_var.get('size', 100), key=f"size_{selected_text_idx}")
+            st.session_state.text_variations[selected_text_idx]['size'] = size
+        with col4:
+            color = st.color_picker("色", text_var.get('color', '#000000'), key=f"color_{selected_text_idx}")
+            st.session_state.text_variations[selected_text_idx]['color'] = color
+        
+        # 第7：文字間、行間、縦横比
+        col5, col6, col7 = st.columns(3)
+        with col5:
+            char_spacing = st.slider("文字間", -10, 50, text_var.get('char_spacing', 0), key=f"char_{selected_text_idx}")
+            st.session_state.text_variations[selected_text_idx]['char_spacing'] = char_spacing
+        with col6:
+            line_spacing = st.slider("行間", -10, 50, text_var.get('line_spacing', 0), key=f"line_{selected_text_idx}")
+            st.session_state.text_variations[selected_text_idx]['line_spacing'] = line_spacing
+        with col7:
+            aspect_ratio = st.slider("縦横比", 50, 200, int(text_var.get('aspect_ratio', 1.0) * 100), key=f"aspect_{selected_text_idx}") / 100
+            st.session_state.text_variations[selected_text_idx]['aspect_ratio'] = aspect_ratio
             
-            if st.button("中央に配置", key=f"center_{selected_text_idx}", use_container_width=True):
-                st.session_state.text_variations[selected_text_idx]['x'] = WIDTH // 2
-                st.session_state.text_variations[selected_text_idx]['y'] = HEIGHT // 2
-                st.rerun()
+        # 第8：X座標（横）、Y座標（縦）
+        col8, col9 = st.columns(2)
+        with col8:
+            pos_x = st.slider("横位置 (X)", 0, WIDTH, text_var.get('x', WIDTH // 2), key=f"x_{selected_text_idx}")
+            st.session_state.text_variations[selected_text_idx]['x'] = pos_x
+        with col9:
+            pos_y = st.slider("縦位置 (Y)", 0, HEIGHT, text_var.get('y', HEIGHT // 2), key=f"y_{selected_text_idx}")
+            st.session_state.text_variations[selected_text_idx]['y'] = pos_y
+
+        if st.button("中央に配置", key=f"center_{selected_text_idx}", use_container_width=True):
+            st.session_state.text_variations[selected_text_idx]['x'] = WIDTH // 2
+            st.session_state.text_variations[selected_text_idx]['y'] = HEIGHT // 2
+            st.rerun()
 
         # アイコン増加専用
         if use_icon_increase:
@@ -1165,7 +1123,7 @@ with col_settings:
                                 st.download_button("DL", data=data, file_name=filename, mime="image/png", key=f"dl_{file_idx}", use_container_width=True)
 
 # ==========================================
-# 右カラム：プレビューエリア（Sticky）
+# 右カラム：プレビューエリア（Sticky + 横スクロール）
 # ==========================================
 with col_preview:
     st.markdown('<div class="preview-box">', unsafe_allow_html=True)
@@ -1184,32 +1142,36 @@ with col_preview:
         # 赤枠点滅プレビュー
         if use_red_border:
             st.markdown("##### 赤枠点滅")
-            cols = st.columns(2) # プレビューを少し大きく見せるため2列に変更
+            html_content = '<div class="scroll-container">'
             for idx, text_var in enumerate(enabled_text_variations):
-                with cols[idx % 2]:
-                    st.caption(f"Text {st.session_state.text_variations.index(text_var) + 1}")
-                    preview_img = create_preview_image(
-                        [text_var], preview_annotation_elements,
-                        st.session_state.image_variations[0]['image'],
-                        st.session_state.image_variations[0],
-                        "赤枠点滅", scale=0.5, border_width=13, border_color="red"
-                    )
-                    st.image(preview_img, use_container_width=True)
+                preview_img = create_preview_image(
+                    [text_var], preview_annotation_elements,
+                    st.session_state.image_variations[0]['image'],
+                    st.session_state.image_variations[0],
+                    "赤枠点滅", scale=0.5, border_width=13, border_color="red"
+                )
+                b64_img = image_to_base64(preview_img)
+                text_label = f"Text {st.session_state.text_variations.index(text_var) + 1}"
+                html_content += f'<div class="scroll-item"><img src="data:image/png;base64,{b64_img}" /><div class="scroll-item-caption">{text_label}</div></div>'
+            html_content += '</div>'
+            st.markdown(html_content, unsafe_allow_html=True)
         
         # 4隅アイコンプレビュー
         if use_corner_icon:
             st.markdown("##### 4隅アイコン")
-            cols = st.columns(2)
+            html_content = '<div class="scroll-container">'
             for idx, text_var in enumerate(enabled_text_variations):
-                with cols[idx % 2]:
-                    st.caption(f"Text {st.session_state.text_variations.index(text_var) + 1}")
-                    preview_img = create_preview_image(
-                        [text_var], preview_annotation_elements,
-                        st.session_state.image_variations[0]['image'],
-                        st.session_state.image_variations[0],
-                        "4隅アイコン点滅", scale=0.5, icon_size=85, icon_name="check.png"
-                    )
-                    st.image(preview_img, use_container_width=True)
+                preview_img = create_preview_image(
+                    [text_var], preview_annotation_elements,
+                    st.session_state.image_variations[0]['image'],
+                    st.session_state.image_variations[0],
+                    "4隅アイコン点滅", scale=0.5, icon_size=85, icon_name="check.png"
+                )
+                b64_img = image_to_base64(preview_img)
+                text_label = f"Text {st.session_state.text_variations.index(text_var) + 1}"
+                html_content += f'<div class="scroll-item"><img src="data:image/png;base64,{b64_img}" /><div class="scroll-item-caption">{text_label}</div></div>'
+            html_content += '</div>'
+            st.markdown(html_content, unsafe_allow_html=True)
         
         # アイコン増加プレビュー
         if use_icon_increase:
@@ -1218,19 +1180,21 @@ with col_preview:
             current_icon_names = st.session_state.get('icon_names_increase', ["check.png"])
             preview_icon_name = current_icon_names[0] if current_icon_names else "check.png"
             
-            cols = st.columns(2)
+            html_content = '<div class="scroll-container">'
             for idx, text_var in enumerate(enabled_text_variations):
-                with cols[idx % 2]:
-                    st.caption(f"Text {st.session_state.text_variations.index(text_var) + 1}")
-                    preview_img = create_preview_image(
-                        [text_var], preview_annotation_elements,
-                        st.session_state.image_variations[0]['image'],
-                        st.session_state.image_variations[0],
-                        "アイコン増加", 
-                        scale=0.5, 
-                        icon_size=current_icon_size,
-                        icon_name=preview_icon_name
-                    )
-                    st.image(preview_img, use_container_width=True)
+                preview_img = create_preview_image(
+                    [text_var], preview_annotation_elements,
+                    st.session_state.image_variations[0]['image'],
+                    st.session_state.image_variations[0],
+                    "アイコン増加", 
+                    scale=0.5, 
+                    icon_size=current_icon_size,
+                    icon_name=preview_icon_name
+                )
+                b64_img = image_to_base64(preview_img)
+                text_label = f"Text {st.session_state.text_variations.index(text_var) + 1}"
+                html_content += f'<div class="scroll-item"><img src="data:image/png;base64,{b64_img}" /><div class="scroll-item-caption">{text_label}</div></div>'
+            html_content += '</div>'
+            st.markdown(html_content, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
